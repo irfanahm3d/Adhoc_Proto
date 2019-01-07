@@ -10,6 +10,10 @@ namespace Adhoc_Proto
     {
         static void Main(string[] args)
         {
+            MPS7Data data = new MPS7Data();
+            data.LoadData();
+            
+
         }
     }
 }
