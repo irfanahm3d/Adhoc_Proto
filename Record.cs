@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace Adhoc_Proto
+namespace Adhoc.Proto
 {
-    enum RecordType
+    internal enum RecordType
     {
         Debit=0x00,
         Credit=0x01,
@@ -10,14 +10,14 @@ namespace Adhoc_Proto
         EndAutopay=0x03
     }
 
-    interface IRecord
+    internal interface IRecord
     {
         RecordType Type { get; }
         UInt32 Timestamp { get; }
         UInt64 UserID { get; }
     }
 
-    class AccountRecord : IRecord
+    internal class AccountRecord : IRecord
     {
         public RecordType Type { get; private set; }
         public UInt32 Timestamp { get; private set; }
@@ -38,7 +38,7 @@ namespace Adhoc_Proto
         }
     }
 
-    class AutopayRecord : IRecord
+    internal class AutopayRecord : IRecord
     {
         public RecordType Type { get; private set; }
         public UInt32 Timestamp { get; private set; }

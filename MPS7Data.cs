@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Adhoc_Proto
+namespace Adhoc.Proto
 {
     class MPS7Data
     {
@@ -11,7 +11,7 @@ namespace Adhoc_Proto
         public byte VersionNumber { get; set; }
         public UInt32 RecordsAmount { get; set; }
 
-        IDictionary<RecordType, IDictionary<UInt64, IList<IRecord>>> RecordsMap 
+        internal IDictionary<RecordType, IDictionary<UInt64, IList<IRecord>>> RecordsMap 
             = new Dictionary<RecordType, IDictionary<UInt64, IList<IRecord>>>();
 
         /// <summary>
@@ -89,15 +89,15 @@ namespace Adhoc_Proto
         /// RecordType has been specified.
         /// </summary>
         /// <param name="type">
-        /// The RecordType for which to calculate the total amount/
+        /// The RecordType for which to calculate the total amount.
         /// Limited to RecordType.Debit and RecordType.Credit.
         /// </param>
         /// <returns>The total amount</returns>
-        Double CalculateTotalAmount(RecordType type)
+        internal Double CalculateTotalAmount(RecordType type)
         {
-            if (type != RecordType.Debit || type != RecordType.Credit)
+            if (!(Equals(type, RecordType.Debit) || Equals(type, RecordType.Credit)))
             {
-                throw new ArgumentException();
+                throw new ArgumentException("Invalid parameter passed. " + type.ToString());
             }
 
             Double totalAmount = 0.0d;
@@ -117,32 +117,53 @@ namespace Adhoc_Proto
         /// </summary>
         /// <param name="type">The RecordType to get a count for.</param>
         /// <returns>The total count</returns>
-        int RetrieveAutopayCount(RecordType type)
+        internal int RetrieveAutopayCount(RecordType type)
         {
-            return this.RecordsMap[type].Values.Count;
+            IDictionary<UInt64, IList<IRecord>> transactions = null;
+            if (!this.RecordsMap.TryGetValue(type, out transactions))
+            {
+                throw new ArgumentException("RecordType not found");
+            }
+
+            return transactions.Count;
         }
 
         /// <summary>
         /// Reads the binary data file.
         /// </summary>
         /// <returns>Returns a byte array of the binary data.</returns>
-        byte[] ReadBytesFromFile()
+        internal byte[] ReadBytesFromFile()
         {
-            using (FileStream fs = new FileStream(binaryDataFilePath, FileMode.Open, FileAccess.Read))
+            try
             {
-                using (BinaryReader br = new BinaryReader(fs))
+                using (FileStream fs = new FileStream(binaryDataFilePath, FileMode.Open, FileAccess.Read))
                 {
-                    byte[] txnByteArray = new byte[br.BaseStream.Length];
-                    int idx = 0;
-                    while (br.BaseStream.Position != br.BaseStream.Length)
+                    using (BinaryReader br = new BinaryReader(fs))
                     {
-                        txnByteArray[idx] = br.ReadByte();
-                        idx++;
-                    }
+                        byte[] txnByteArray = new byte[br.BaseStream.Length];
+                        int idx = 0;
+                        while (br.BaseStream.Position != br.BaseStream.Length)
+                        {
+                            txnByteArray[idx] = br.ReadByte();
+                            idx++;
+                        }
 
-                    return txnByteArray;
+                        return txnByteArray;
+                    }
                 }
-            }                
+            }
+            catch (FileNotFoundException fEx)
+            {
+                throw fEx;
+            }
+            catch (IOException ioEx)
+            {
+                throw ioEx;
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
         }
 
         /// <summary>
@@ -151,7 +172,7 @@ namespace Adhoc_Proto
         /// records.
         /// </summary>
         /// <param name="byteArray">The byte array of the binary data</param>
-        void ReadAndValidateHeader(byte[] byteArray)
+        internal void ReadAndValidateHeader(byte[] byteArray)
         {
             StringBuilder sb = new StringBuilder();
             for (int idx = 0; idx < 4; idx++)
@@ -162,7 +183,7 @@ namespace Adhoc_Proto
             // To validate the file is in the expected format
             if (!sb.ToString().Equals("MPS7"))
             {
-                throw new FormatException();
+                throw new FormatException("Unexpected format.");
             }
 
             this.VersionNumber = Convert.ToByte(byteArray[4]);
@@ -178,7 +199,7 @@ namespace Adhoc_Proto
         /// </summary>
         /// <param name="recordInfo">A reference to the record to be populated</param>
         /// <returns>The index value by which to offset the byte array</returns>
-        int ReadRecordInfo(byte[] recordInfo, ref IRecord record)
+        internal int ReadRecordInfo(byte[] recordInfo, ref IRecord record)
         {
             int idx = 0;
             byte recordTypeEnum = Convert.ToByte(recordInfo[idx]);
@@ -234,7 +255,7 @@ namespace Adhoc_Proto
         /// userID.
         /// </summary>
         /// <param name="record">The record to be stored</param>
-        void PopulateRecordsMap(IRecord record)
+        internal void PopulateRecordsMap(IRecord record)
         {
             IDictionary<UInt64, IList<IRecord>> usersTransactionMap = null;
 
@@ -279,7 +300,7 @@ namespace Adhoc_Proto
         /// Reads the byte array to retrieve the individual records.
         /// </summary>
         /// <param name="byteArray">The byte array of the binary data</param>
-        void ReadRecords(byte[] byteArray)
+        internal void ReadRecords(byte[] byteArray)
         {
             int recordCount = 0;
             int idx = 9;
@@ -300,7 +321,6 @@ namespace Adhoc_Proto
                 idx += ReadRecordInfo(recordInfo, ref record);
                 PopulateRecordsMap(record);
                 recordCount++;
-                //Console.WriteLine(recordCount);
             }
 
             // In the scenario the records read are not equal to the record amount
